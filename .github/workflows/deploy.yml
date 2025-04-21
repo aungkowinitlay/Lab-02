@@ -1,0 +1,51 @@
+name: Build and Deploy with self-hosted Runner
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: [self-hosted, builder]
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run Local Setup Script (builder)
+        run: ./run.sh
+
+      - name: Build Docker Images
+        run: |
+          docker build -t aungkowin/my-frontend:latest ./frontend
+          docker build -t aungkowin/my-backend:latest ./backend
+
+      - name: Login & Push to DockerHub
+        run: |
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+          docker push aungkowin/my-frontend:latest
+          docker push aungkowin/my-backend:latest
+
+  deploy:
+    needs: build
+    runs-on: [self-hosted, builder]  # SSH from builder to deployer
+    steps:
+      - name: Setup SSH Key
+        run: |
+          echo "${{ secrets.DEPLOYER_SSH_KEY }}" > deployer_key
+          chmod 600 deployer_key
+
+      - name: SSH to Deployer and Run Deployment
+        run: |
+          ssh -o StrictHostKeyChecking=no -i deployer_key ${{ secrets.DEPLOYER_USER }}@${{ secrets.DEPLOYER_HOST }} << 'EOF'
+            cd ~
+            chmod +x ./run.sh
+            ./run.sh
+
+            docker pull aungkowin/my-frontend:latest
+            docker pull aungkowin/my-backend:latest
+
+            docker rm -f frontend-container || true
+            docker rm -f backend-container || true
+
+            docker run -d --name frontend-container -p 80:80 aungkowin/my-frontend:latest
+            docker run -d --name backend-container -p 5000:5000 aungkowin/my-backend:latest
+          EOF
