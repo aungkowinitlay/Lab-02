@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Run Local Setup Script (builder)
+      - name: Run Local Builder Setup
         run: ./run.sh
 
       - name: Build Docker Images
@@ -26,20 +26,20 @@ jobs:
 
   deploy:
     needs: build
-    runs-on: [self-hosted, builder]  # SSH from builder to deployer
+    runs-on: [self-hosted, builder]   # still runs from builder, deploys remotely
     steps:
-      - name: Setup SSH Key
+      - name: Setup SSH Key for Remote Access
         run: |
-          echo "${{ secrets.DEPLOYER_SSH_KEY }}" > deployer_key
-          chmod 600 deployer_key
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key
+          chmod 600 private_key
 
-      - name: SSH to Deployer and Run Deployment
+      - name: SSH into Deployer VM and Run Script
         run: |
-          ssh -o StrictHostKeyChecking=no -i deployer_key ${{ secrets.DEPLOYER_USER }}@${{ secrets.DEPLOYER_HOST }} << 'EOF'
-            cd ~
-            chmod +x ./run.sh
-            ./run.sh
+          ssh -i private_key -o StrictHostKeyChecking=no ubuntu@DEPLOYER_VM_IP 'bash /home/ubuntu/run.sh'
 
+      - name: SSH Pull & Redeploy Containers
+        run: |
+          ssh -i private_key -o StrictHostKeyChecking=no ubuntu@DEPLOYER_VM_IP << 'EOF'
             docker pull aungkowin/my-frontend:latest
             docker pull aungkowin/my-backend:latest
 
