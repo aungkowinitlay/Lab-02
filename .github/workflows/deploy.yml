@@ -8,8 +8,8 @@ jobs:
   build:
     runs-on: [self-hosted, builder]
     steps:
-      - uses: actions/checkout@v3
-      - run: ./run.sh
+      - name: Run Runner-local script
+        run: /home/aung/actions-runner/run.sh
 
       - name: Build Docker Images
         run: |
