@@ -9,10 +9,7 @@ jobs:
     runs-on: [self-hosted, builder]
     steps:
       - uses: actions/checkout@v3
-
-      # ✅ Auto-run run.sh inside Builder VM
-      - name: Run Builder Setup Script
-        run: bash /home/aung/actions-runner/run.sh
+      - run: ./run.sh
 
       - name: Build Docker Images
         run: |
@@ -27,29 +24,25 @@ jobs:
 
   deploy:
     needs: build
-    runs-on: [self-hosted, builder]   # Still using builder to SSH remotely
+    runs-on: [self-hosted, deployer]
+    
     steps:
-      # ✅ Setup SSH key for remote access
-      - name: Setup SSH Key
+      - run: ./run.sh
+      - name: Pull & Redeploy Containers
         run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key
-          chmod 600 private_key
+          docker pull aungkowin/my-frontend:latest
+          docker pull aungkowin/my-backend:latest
 
-      # ✅ SSH into Deployer VM and run run.sh
-      - name: SSH into Deployer and Run run.sh
+          docker rm -f frontend-container || true
+          docker rm -f backend-container || true
+
+          docker run -d --name frontend-container -p 80:80 aungkowin/my-frontend:latest
+          docker run -d --name backend-container -p 5000:5000 aungkowin/my-backend:latest
+
+
+      - name: SSH to Deployer and Run Script
         run: |
-          ssh -i private_key -o StrictHostKeyChecking=no ubuntu@DEPLOYER_VM_IP 'bash /home/ko/actions-runner/run.sh'
+          echo "${{ secrets.VM2_SSH_KEY }}" > vm2_key
+          chmod 600 vm2_key
 
-      # ✅ Redeploy Docker Containers Remotely
-      - name: Pull and Run Docker Containers
-        run: |
-          ssh -i private_key -o StrictHostKeyChecking=no ubuntu@DEPLOYER_VM_IP << 'EOF'
-            docker pull aungkowin/my-frontend:latest
-            docker pull aungkowin/my-backend:latest
-
-            docker rm -f frontend-container || true
-            docker rm -f backend-container || true
-
-            docker run -d --name frontend-container -p 80:80 aungkowin/my-frontend:latest
-            docker run -d --name backend-container -p 5000:5000 aungkowin/my-backend:latest
-          EOF
+          ssh -o StrictHostKeyChecking=no -i vm2_key root@VM2_IP 'bash ~/run.sh'
