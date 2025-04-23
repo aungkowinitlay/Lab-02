@@ -27,22 +27,23 @@ jobs:
     runs-on: [self-hosted, deployer]
     
     steps:
-      - run: ./run.sh
-      - name: Pull & Redeploy Containers
-        run: |
-          docker pull aungkowin/my-frontend:latest
-          docker pull aungkowin/my-backend:latest
-
-          docker rm -f frontend-container || true
-          docker rm -f backend-container || true
-
-          docker run -d --name frontend-container -p 80:80 aungkowin/my-frontend:latest
-          docker run -d --name backend-container -p 5000:5000 aungkowin/my-backend:latest
-
-
       - name: SSH to Deployer and Run Script
         run: |
           echo "${{ secrets.VM2_SSH_KEY }}" > vm2_key
           chmod 600 vm2_key
 
           ssh -o StrictHostKeyChecking=no -i vm2_key root@VM2_IP 'bash ~/run.sh'
+      
+          - name: Pull & Redeploy Containers
+            run: |
+              docker pull aungkowin/my-frontend:latest
+              docker pull aungkowin/my-backend:latest
+
+              docker rm -f frontend-container || true
+              docker rm -f backend-container || true
+
+              docker run -d --name frontend-container -p 80:80 aungkowin/my-frontend:latest
+              docker run -d --name backend-container -p 5000:5000 aungkowin/my-backend:latest
+
+
+      
