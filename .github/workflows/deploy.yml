@@ -38,7 +38,7 @@ jobs:
       - name: SSH to VM2 and Start Runner (Background)
         run: |
           ssh -o StrictHostKeyChecking=no -i vm2_key ko@${{ secrets.VM2_IP }} '
-            cd ~/actions-runner && nohup ./run.sh > runner.log 2>&1 &
+            cd /home/ko/actions-runner && nohup ./run.sh > runner.log 2>&1 &
           '
 
   deploy:
