@@ -25,16 +25,18 @@ jobs:
           docker push aungkowin/my-frontend:latest
           docker push aungkowin/my-backend:latest
 
-      - name: Debug network to VM2
-        run: |
-            ping -c 3 ${{ secrets.VM2_IP }} || echo "Ping failed"
-            ssh -vvv -o StrictHostKeyChecking=no -i vm2_key ko@${{ secrets.VM2_IP }} "echo Connected"
-        
-
-      - name: SSH to VM2 and Start Runner (Background)
+      - name: Create SSH key file
         run: |
           echo "${{ secrets.VM2_SSH_KEY }}" > vm2_key
           chmod 600 vm2_key
+
+      - name: Debug network to VM2
+        run: |
+          ping -c 3 ${{ secrets.VM2_IP }} || echo "Ping failed"
+          ssh -vvv -o StrictHostKeyChecking=no -i vm2_key ko@${{ secrets.VM2_IP }} "echo Connected"
+
+      - name: SSH to VM2 and Start Runner (Background)
+        run: |
           ssh -o StrictHostKeyChecking=no -i vm2_key ko@${{ secrets.VM2_IP }} '
             cd ~/actions-runner && nohup ./run.sh > runner.log 2>&1 &
           '
