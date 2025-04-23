@@ -7,7 +7,11 @@ on:
 jobs:
   build:
     runs-on: [self-hosted, builder]
+
     steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+
       - name: Login to DockerHub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
@@ -16,24 +20,24 @@ jobs:
           docker build -t aungkowin/my-frontend:latest ./frontend
           docker build -t aungkowin/my-backend:latest ./backend
 
-      - name: Push to DockerHub
+      - name: Push Docker Images
         run: |
           docker push aungkowin/my-frontend:latest
           docker push aungkowin/my-backend:latest
 
-  deploy:
-    needs: build
-    runs-on: [self-hosted, deployer]
-    steps:
-      - name: Create SSH Key for VM2
+      - name: SSH to VM2 and Start Runner (Background)
         run: |
           echo "${{ secrets.VM2_SSH_KEY }}" > vm2_key
           chmod 600 vm2_key
+          ssh -o StrictHostKeyChecking=no -i vm2_key ubuntu@${{ secrets.VM2_IP }} '
+            cd ~/actions-runner && nohup ./run.sh > runner.log 2>&1 &
+          '
 
-      - name: SSH to Deployer and Run Script
-        run: |
-          ssh -o StrictHostKeyChecking=no -i vm2_key root@VM2_IP 'bash ~/run.sh'
+  deploy:
+    needs: build
+    runs-on: [self-hosted, deployer]
 
+    steps:
       - name: Pull & Redeploy Containers
         run: |
           docker pull aungkowin/my-frontend:latest
